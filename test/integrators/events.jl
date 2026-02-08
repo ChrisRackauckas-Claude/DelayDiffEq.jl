@@ -92,3 +92,42 @@ end
     # Should be triggered approximately 10 times (at t=1,2,3,...,10)
     @test counter[] >= 9
 end
+
+# Issue https://github.com/SciML/DifferentialEquations.jl/issues/1124
+# PresetTimeCallback should not be skipped due to floating-point accumulation
+# in propagated tstops from constant lags
+@testset "PresetTimeCallback with constant lags" begin
+    # This test reproduces the issue where PresetTimeCallback is skipped
+    # when constant lag multiples coincide with preset times due to FP error.
+    # With delays = [0.2, 4], t=9.0 = 45*0.2 and the propagated tstop
+    # accumulates to 8.999999999999996 due to repeated t + lag additions.
+
+    function f(du, u, h, p, t)
+        du[1] = -u[1] + h(p, t - p[1])[1]
+    end
+    h(p, t) = [1.0]
+
+    # Test with delays that cause the issue: 0.2 is a problematic lag
+    # because 9.0 = 45 * 0.2 and FP accumulation lands just below 9.0
+    delays = [0.2, 4.0]
+    tspan = (0.0, 12.0)
+
+    # Track which preset times were actually hit
+    callback_times = Float64[]
+    preset_times = [2.0, 3.0, 9.0, 10.0]
+
+    function record_callback!(integrator)
+        push!(callback_times, integrator.t)
+    end
+
+    cb = PresetTimeCallback(preset_times, record_callback!)
+    prob = DDEProblem(f, [1.0], h, tspan, [delays[1]]; constant_lags = delays)
+    sol = solve(prob, MethodOfSteps(Tsit5()), callback = cb)
+
+    @test sol.retcode == ReturnCode.Success
+    # All preset times should have been hit
+    @test length(callback_times) == length(preset_times)
+    for pt in preset_times
+        @test any(ct -> isapprox(ct, pt; atol = 1.0e-10), callback_times)
+    end
+end

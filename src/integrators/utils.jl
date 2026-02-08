@@ -218,10 +218,17 @@ function OrdinaryDiffEqCore.handle_discontinuities!(integrator::DDEIntegrator)
             order = min(order, d2.order)
         end
 
-        # also remove all corresponding time stops
-        while OrdinaryDiffEqCore.has_tstop(integrator) &&
-                abs(OrdinaryDiffEqCore.first_tstop(integrator) - tdir_t) < maxΔt
-            OrdinaryDiffEqCore.pop_tstop!(integrator)
+        # also remove all corresponding propagated time stops
+        # NOTE: only remove from tstops_propagated, not from opts.tstops
+        # User-specified tstops (e.g., from PresetTimeCallback) should never be
+        # removed by discontinuity handling. Due to floating-point accumulation in
+        # propagated tstops (computed as t + lag repeatedly), a propagated tstop
+        # might be within eps of a user tstop but not exactly equal, causing the
+        # user tstop to be erroneously removed. See:
+        # https://github.com/SciML/DifferentialEquations.jl/issues/1124
+        while !isempty(integrator.tstops_propagated) &&
+                abs(first(integrator.tstops_propagated) - tdir_t) < maxΔt
+            pop!(integrator.tstops_propagated)
         end
     end
 
