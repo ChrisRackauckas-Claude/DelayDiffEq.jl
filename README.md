@@ -6,7 +6,7 @@
 
 > [!IMPORTANT] 
 >
-> This package was moved to be a sublibrary in [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl). The migration is a maintanance change but should have no functional
+> This package was moved to be a sublibrary in [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl). The migration is a maintenance change but should have no functional
 > change to the library.
 
 DelayDiffEq.jl is a component package in the DifferentialEquations ecosystem. It holds the
